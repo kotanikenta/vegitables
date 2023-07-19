@@ -25,8 +25,12 @@ def preprocess_image(image_path):
 def predict_image(image_path):
     model = load_model('vegetable_model.keras')  # モデルの読み込み
     img = preprocess_image(image_path)
+    
+    # 以下の部分を修正
     predictions = model.predict(img)
-    decoded_predictions = decode_predictions(predictions, top=3)[0]
+    predictions_2d = np.expand_dims(predictions, axis=0)
+    decoded_predictions = decode_predictions(predictions_2d, top=3)[0]
+    
     results = [(class_name, probability) for _, class_name, probability in decoded_predictions]
     return results
 
