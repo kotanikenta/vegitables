@@ -1,3 +1,6 @@
+import codecs
+import io
+
 from flask import Flask, render_template, request
 from PIL import Image
 from keras.applications.vgg16 import VGG16, preprocess_input, decode_predictions
@@ -10,7 +13,9 @@ from keras.models import load_model
 app = Flask(__name__)
 
 def preprocess_image(image_path):
-    image = Image.open(image_path)
+    with codecs.open(image_path, 'rb') as file:
+        data = file.read()
+    image = Image.open(io.BytesIO(data))
     image = image.resize((224, 224))
     image = np.array(image) / 255.0
     image = np.expand_dims(image, axis=0)
@@ -83,7 +88,7 @@ model = Model(inputs=base_model.input, outputs=predictions)
 # モデルのコンパイル
 model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
 
-# モデルの訓練
+# モデルの訓練（初回のみ実行）
 model.fit(
     train_generator,
     steps_per_epoch=train_generator.n // train_generator.batch_size,
@@ -92,9 +97,8 @@ model.fit(
     validation_steps=test_generator.n // test_generator.batch_size
 )
 
-# モデルの保存
+# モデルの保存（初回のみ実行）
 model.save('vegetable_model.keras')
 
-if __name__ == '__main__':
-    app.run(debug=True)
- 
+# Flaskアプリをポート5000で実行
+app.run(debug=True, port=5000)
