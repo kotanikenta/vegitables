@@ -9,6 +9,7 @@ from keras.layers import Flatten, Dense
 from keras.preprocessing.image import ImageDataGenerator
 import numpy as np
 from keras.models import load_model
+import os
 
 app = Flask(__name__)
 
@@ -40,65 +41,75 @@ def predict():
     results = predict_image('static/uploaded_image.jpg')
     return render_template('results.html', results=results)
 
-# データセットのパス
-dataset_path = 'static/images/'
+# モデルの読み込みと訓練
+def load_or_train_model():
+    if os.path.exists('vegetable_model.keras'):
+        model = load_model('vegetable_model.keras')
+    else:
+        # データセットのパス
+        dataset_path = 'static/images/'
 
-# クラスのリスト
-classes = ['broccori', 'cabbage', 'carotto', 'cucumber', 'eggplant', 'Okura', 'onion', 'potate', 'tomate']
+        # クラスのリスト
+        classes = ['broccori', 'cabbage', 'carotto', 'cucumber', 'eggplant', 'Okura', 'onion', 'potate', 'tomate']
 
-# データセットの分割とデータ拡張の設定
-train_datagen = ImageDataGenerator(
-    rescale=1.0 / 255.0,
-    shear_range=0.2,
-    zoom_range=0.2,
-    horizontal_flip=True,
-    validation_split=0.2
-)
+        # データセットの分割とデータ拡張の設定
+        train_datagen = ImageDataGenerator(
+            rescale=1.0 / 255.0,
+            shear_range=0.2,
+            zoom_range=0.2,
+            horizontal_flip=True,
+            validation_split=0.2
+        )
 
-# 訓練データの生成器
-train_generator = train_datagen.flow_from_directory(
-    dataset_path,
-    target_size=(224, 224),
-    batch_size=32,
-    class_mode='categorical',
-    subset='training'
-)
+        # 訓練データの生成器
+        train_generator = train_datagen.flow_from_directory(
+            dataset_path,
+            target_size=(224, 224),
+            batch_size=32,
+            class_mode='categorical',
+            subset='training'
+        )
 
-# テストデータの生成器
-test_generator = train_datagen.flow_from_directory(
-    dataset_path,
-    target_size=(224, 224),
-    batch_size=32,
-    class_mode='categorical',
-    subset='validation'
-)
+        # テストデータの生成器
+        test_generator = train_datagen.flow_from_directory(
+            dataset_path,
+            target_size=(224, 224),
+            batch_size=32,
+            class_mode='categorical',
+            subset='validation'
+        )
 
-# VGG16モデルの読み込み
-base_model = VGG16(weights='imagenet', include_top=False, input_shape=(224, 224, 3))
+        # VGG16モデルの読み込み
+        base_model = VGG16(weights='imagenet', include_top=False, input_shape=(224, 224, 3))
 
-# トップ層の追加
-x = base_model.output
-x = Flatten()(x)
-x = Dense(512, activation='relu')(x)
-predictions = Dense(len(classes), activation='softmax')(x)
+        # トップ層の追加
+        x = base_model.output
+        x = Flatten()(x)
+        x = Dense(512, activation='relu')(x)
+        predictions = Dense(len(classes), activation='softmax')(x)
 
-# 新しいモデルの作成
-model = Model(inputs=base_model.input, outputs=predictions)
+        # 新しいモデルの作成
+        model = Model(inputs=base_model.input, outputs=predictions)
 
-# モデルのコンパイル
-model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+        # モデルのコンパイル
+        model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
 
-# モデルの訓練（初回のみ実行）
-model.fit(
-    train_generator,
-    steps_per_epoch=train_generator.n // train_generator.batch_size,
-    epochs=10,
-    validation_data=test_generator,
-    validation_steps=test_generator.n // test_generator.batch_size
-)
+        # モデルの訓練
+        model.fit(
+            train_generator,
+            steps_per_epoch=train_generator.n // train_generator.batch_size,
+            epochs=10,
+            validation_data=test_generator,
+            validation_steps=test_generator.n // test_generator.batch_size
+        )
 
-# モデルの保存（初回のみ実行）
-model.save('vegetable_model.keras')
+        # モデルの保存
+        model.save('vegetable_model.keras')
 
-# Flaskアプリをポート5000で実行
-app.run(debug=True, port=5000)
+    return model
+
+if __name__ == '__main__':
+    model = load_or_train_model()
+
+    # Flaskアプリをポート5000で実行
+    app.run(debug=True, port=5000)
