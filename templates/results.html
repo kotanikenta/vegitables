@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>予測結果</title>
+</head>
+<body>
+    <h1>予測結果</h1>
+    <ul>
+        {% for class_name, probability in results %}
+            <li>{{ class_name }}: {{ probability }}</li>
+        {% endfor %}
+    </ul>
+</body>
+</html>
